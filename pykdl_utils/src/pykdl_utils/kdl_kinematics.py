@@ -365,9 +365,9 @@ def main():
     if len(sys.argv) == 2 and (sys.argv[1] == "-h" or sys.argv[1] == "--help"):
         usage()
     if (len(sys.argv) == 1):
-        robot = URDF.load_from_parameter_server()
+        robot = URDF.load_from_parameter_server(verbose=False)
     else:
-        robot = URDF.load_xml_file(sys.argv[1])
+        robot = URDF.load_xml_file(sys.argv[1], verbose=False)
 
     if True:
         import random

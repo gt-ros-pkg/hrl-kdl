@@ -1,0 +1,16 @@
+<stack>
+  <description brief="KDL wrappers and kinematics utilities.">
+
+      hrl_kdl contains wrappers for interfacing with KDL and other utilities
+        for dealing with kinematics.
+
+  </description>
+  <author>Kelsey Hawkins</author>
+  <license>BSD</license>  
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/hrl_kdl</url>
+  <version>0.1.0</version>
+  <depend stack="ros" />
+  <depend stack="rospy" />
+
+</stack>

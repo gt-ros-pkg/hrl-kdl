@@ -408,6 +408,7 @@ def main():
     errors = 0
     for type_from in PoseConv.POSE_TYPES:
         for type_to in PoseConv.POSE_TYPES:
+            print 
             print "Types: FROM %s, TO %s" % (type_from, type_to)
             exec("from_pose = PoseConv.to_%s(pose)" % type_from)
             if from_pose is None or (type(from_pose) is tuple and from_pose[0] is None):
@@ -443,7 +444,6 @@ def main():
                 print orig_pose
                 errors += 1
                 continue
-            print 
             print "-" * 50
             if type_from != PoseConv.get_type(from_pose) or type_to != PoseConv.get_type(to_pose):
                 print "get_type ERROR\n" * 5
@@ -451,7 +451,7 @@ def main():
                 continue
             print from_pose
             print "-" * 20
-            print back_pose
+            print to_pose
     print "\n\nErrors: %d" % errors
 
 if __name__ == "__main__":

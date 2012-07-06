@@ -66,7 +66,7 @@ class PoseConv(object):
     def get_type(*args):
         try:
             if type(args[0]) == str:
-                return PoseConv.get_type(args[1:])
+                return PoseConv.get_type(*args[1:])
             if len(args) == 1:
                 if type(args[0]) is Pose:
                     return 'pose_msg'

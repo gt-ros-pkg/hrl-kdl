@@ -115,6 +115,28 @@ class JointStateKDLKin(KDLKinematics):
         return super(JointStateKDLKin, self).jacobian(q)
 
     ##
+    # Returns the joint space mass matrix at the end_link for the given joint angles.
+    # @param q List of joint angles.
+    # @return NxN np.mat Inertia matrix or None if the joint angles are not filled.
+    def inertia(self, q=None):
+        if q is None:
+            q = self.get_joint_angles()
+            if q is None:
+                return None
+        return super(JointStateKDLKin, self).inertia(q)
+
+    ##
+    # Returns the cartesian space mass matrix at the end_link for the given joint angles.
+    # @param q List of joint angles.
+    # @return 6x6 np.mat Cartesian inertia matrix or None if the joint angles are not filled.
+    def cart_inertia(self, q=None):
+        if q is None:
+            q = self.get_joint_angles()
+            if q is None:
+                return None
+        return super(JointStateKDLKin, self).cart_inertia(q)
+
+    ##
     # Returns joint angles for continuous joints to a range [0, 2*PI)
     # @param q List of joint angles.
     # @return np.array of wrapped joint angles.

@@ -79,7 +79,7 @@ def urdf_inertial_to_kdl_rbi(i):
     return origin.M * rbi
 
 ##
-# Returns a PyKDL.Tree generated from a urdf_parser_py.URDF object.
+# Returns a PyKDL.Tree generated from a urdf_parser_py.urdf.URDF object.
 def kdl_tree_from_urdf_model(urdf):
     root = urdf.get_root()
     tree = kdl.Tree(root)

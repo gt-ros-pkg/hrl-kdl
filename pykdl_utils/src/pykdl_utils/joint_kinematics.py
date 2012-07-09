@@ -1,4 +1,34 @@
 #! /usr/bin/python
+#
+# Kinematics class which subscribes to the /joint_states topic, providing utility
+# methods for it on top of those provided by KDLKinematics.
+#
+# Copyright (c) 2012, Georgia Tech Research Corporation
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above copyright
+#       notice, this list of conditions and the following disclaimer in the
+#       documentation and/or other materials provided with the distribution.
+#     * Neither the name of the Georgia Tech Research Corporation nor the
+#       names of its contributors may be used to endorse or promote products
+#       derived from this software without specific prior written permission.
+# 
+# THIS SOFTWARE IS PROVIDED BY GEORGIA TECH RESEARCH CORPORATION ''AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL GEORGIA TECH BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+# OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+# OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+# ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# Author: Kelsey Hawkins
 
 import numpy as np
 
@@ -11,10 +41,17 @@ from sensor_msgs.msg import JointState
 from urdf_parser_py.urdf import URDF
 from pykdl_utils.kdl_kinematics import KDLKinematics
 
+def create_joint_kin(base_link, end_link, urdf_filename=None):
+    if urdf_filename is None:
+        robot = URDF.load_from_parameter_server(verbose=False)
+    else:
+        robot = URDF.load_xml_file(urdf_filename, verbose=False)
+    return JointKinematics(robot, base_link, end_link)
+
 ##
 # Kinematics class which subscribes to the /joint_states topic, recording the current
 # joint states for the kinematic chain designated.
-class JointStateKDLKin(KDLKinematics):
+class JointKinematics(KDLKinematics):
     ##
     # Constructor
     # @param urdf URDF object of robot.
@@ -24,7 +61,7 @@ class JointStateKDLKin(KDLKinematics):
     #                          from the URDF.
     # @param timeout Time in seconds to wait for the /joint_states topic.
     def __init__(self, urdf, base_link, end_link, kdl_tree=None, timeout=1.):
-        super(JointStateKDLKin, self).__init__(urdf, base_link, end_link, kdl_tree)
+        super(JointKinematics, self).__init__(urdf, base_link, end_link, kdl_tree)
         self._joint_angles = None
         self._joint_velocities = None
         self._joint_efforts = None
@@ -51,13 +88,13 @@ class JointStateKDLKin(KDLKinematics):
     # @param timeout Time at which we break if we haven't recieved the angles.
     def wait_for_joint_angles(self, timeout=1.):
         start_time = rospy.get_time()
-        r = rospy.Rate(20)
+        r = rospy.Rate(100)
         while not rospy.is_shutdown() and rospy.get_time() - start_time < timeout:
             if self._joint_angles is not None:
                 return True
             r.sleep()
         if not rospy.is_shutdown():
-            rospy.logwarn("[pr2_kin] Cannot read joint angles, timing out.")
+            rospy.logwarn("[joint_state_kdl_kin] Cannot read joint angles, timing out.")
         return False
 
     ##
@@ -66,28 +103,28 @@ class JointStateKDLKin(KDLKinematics):
     #                the angles with the forearm and wrist roll in the range -pi to pi
     def get_joint_angles(self, wrapped=False):
         if self._joint_angles is None:
-            rospy.logwarn("[pr2_kin] Joint angles haven't been filled yet.")
+            rospy.logwarn("[joint_state_kdl_kin] Joint angles haven't been filled yet.")
             return None
         if wrapped:
             return self.wrap_angles(self._joint_angles)
         else:
-            return np.array(self._joint_angles)
+            return np.array(self._joint_angles).copy()
 
     ##
     # Returns the current joint velocities
     def get_joint_velocities(self):
         if self._joint_velocities is None:
-            rospy.logwarn("[pr2_kin] Joint velocities haven't been filled yet.")
+            rospy.logwarn("[joint_state_kdl_kin] Joint velocities haven't been filled yet.")
             return None
-        return np.array(self._joint_velocities)
+        return np.array(self._joint_velocities).copy()
 
     ##
     # Returns the current joint efforts
     def get_joint_efforts(self):
         if self._joint_efforts is None:
-            rospy.logwarn("[pr2_kin] Joint efforts haven't been filled yet.")
+            rospy.logwarn("[joint_state_kdl_kin] Joint efforts haven't been filled yet.")
             return None
-        return np.array(self._joint_efforts)
+        return np.array(self._joint_efforts).copy()
 
     ##
     # Perform forward kinematics on the current joint angles.
@@ -101,7 +138,7 @@ class JointStateKDLKin(KDLKinematics):
             q = self.get_joint_angles()
             if q is None:
                 return None
-        return super(JointStateKDLKin, self).forward(q, end_link, base_link)
+        return super(JointKinematics, self).forward(q, end_link, base_link)
 
     ##
     # Returns the Jacobian matrix at the end_link from the current joint angles.
@@ -112,7 +149,7 @@ class JointStateKDLKin(KDLKinematics):
             q = self.get_joint_angles()
             if q is None:
                 return None
-        return super(JointStateKDLKin, self).jacobian(q)
+        return super(JointKinematics, self).jacobian(q)
 
     ##
     # Returns the joint space mass matrix at the end_link for the given joint angles.
@@ -123,7 +160,7 @@ class JointStateKDLKin(KDLKinematics):
             q = self.get_joint_angles()
             if q is None:
                 return None
-        return super(JointStateKDLKin, self).inertia(q)
+        return super(JointKinematics, self).inertia(q)
 
     ##
     # Returns the cartesian space mass matrix at the end_link for the given joint angles.
@@ -134,7 +171,7 @@ class JointStateKDLKin(KDLKinematics):
             q = self.get_joint_angles()
             if q is None:
                 return None
-        return super(JointStateKDLKin, self).cart_inertia(q)
+        return super(JointKinematics, self).cart_inertia(q)
 
     ##
     # Returns joint angles for continuous joints to a range [0, 2*PI)
@@ -155,7 +192,7 @@ class JointStateKDLKin(KDLKinematics):
         return f
 
 def main():
-    rospy.init_node("jointspace_kdl_kin")
+    rospy.init_node("joint_kinematics")
     import sys
     def usage():
         print("Tests for kdl_parser:\n")
@@ -179,7 +216,7 @@ def main():
         base_link = robot.get_root()
         end_link = robot.links.keys()[random.randint(0, len(robot.links)-1)]
         print "Root link: %s; Random end link: %s" % (base_link, end_link)
-        js_kin = JointStateKDLKin(robot, base_link, end_link)
+        js_kin = JointKinematics(robot, base_link, end_link)
         print "Joint angles:", js_kin.get_joint_angles()
         print "Joint angles (wrapped):", js_kin.get_joint_angles(True)
         print "Joint velocities:", js_kin.get_joint_velocities()

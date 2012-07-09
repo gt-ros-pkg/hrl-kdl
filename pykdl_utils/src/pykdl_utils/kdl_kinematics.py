@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Provides wrappers PyKDL kinematics.
+# Provides wrappers for PyKDL kinematics.
 #
 # Copyright (c) 2012, Georgia Tech Research Corporation
 # All rights reserved.
@@ -42,9 +42,17 @@ from hrl_geom.pose_converter import PoseConv
 from kdl_parser import kdl_tree_from_urdf_model
 from urdf_parser_py.urdf import URDF
 
+def create_kdl_kin(base_link, end_link, urdf_filename=None):
+    if urdf_filename is None:
+        robot = URDF.load_from_parameter_server(verbose=False)
+    else:
+        robot = URDF.load_xml_file(urdf_filename, verbose=False)
+    return KDLKinematics(robot, base_link, end_link)
+
 ##
 # Provides wrappers for performing KDL functions on a designated kinematic
 # chain given a URDF representation of a robot.
+
 class KDLKinematics(object):
     ##
     # Constructor
@@ -288,6 +296,24 @@ class KDLKinematics(object):
         upper_lim = np.where(np.isfinite(upper_lim), upper_lim, np.pi)
         zip_lims = zip(lower_lim, upper_lim)
         return np.array([np.random.uniform(min_lim, max_lim) for min_lim, max_lim in zip_lims])
+
+    ##
+    # Returns a difference between the two sets of joint angles while insuring
+    # that the shortest angle is returned for the continuous joints.
+    # @param q1 List of joint angles.
+    # @param q2 List of joint angles.
+    # @return np.array of wrapped joint angles for retval = q1 - q2
+    def difference_joints(self, q1, q2):
+        diff = np.array(q1) - np.array(q2)
+        diff_mod = np.mod(diff, 2 * np.pi)
+        diff_alt = diff_mod - 2 * np.pi 
+        for i, continuous in enumerate(self.joint_types == 'continuous'):
+            if continuous:
+                if diff_mod[i] < -diff_alt[i]:
+                    diff[i] = diff_mod[i]
+                else:
+                    diff[i] = diff_alt[i]
+        return diff
 
     ##
     # Performs an IK search while trying to balance the demands of reaching the goal,

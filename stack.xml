@@ -5,7 +5,7 @@
         for dealing with kinematics.
 
   </description>
-  <author>Kelsey Hawkins</author>
+  <author>Kelsey Hawkins / kphawkins@gatech.edu, Advisor: Prof. Charlie Kemp (Healthcare Robotics Lab at Georgia Tech)</author>
   <license>BSD</license>  
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/hrl_kdl</url>

@@ -41,12 +41,12 @@ from sensor_msgs.msg import JointState
 from urdf_parser_py.urdf import URDF
 from pykdl_utils.kdl_kinematics import KDLKinematics
 
-def create_joint_kin(base_link, end_link, urdf_filename=None):
+def create_joint_kin(base_link, end_link, urdf_filename=None, timeout=1.):
     if urdf_filename is None:
         robot = URDF.load_from_parameter_server(verbose=False)
     else:
         robot = URDF.load_xml_file(urdf_filename, verbose=False)
-    return JointKinematics(robot, base_link, end_link)
+    return JointKinematics(robot, base_link, end_link, timeout=timeout)
 
 ##
 # Kinematics class which subscribes to the /joint_states topic, recording the current
@@ -87,6 +87,8 @@ class JointKinematics(KDLKinematics):
     # Wait until we have found the current joint angles.
     # @param timeout Time at which we break if we haven't recieved the angles.
     def wait_for_joint_angles(self, timeout=1.):
+        if timeout <= 0:
+            return self._joint_angles is not None
         start_time = rospy.get_time()
         r = rospy.Rate(100)
         while not rospy.is_shutdown() and rospy.get_time() - start_time < timeout:

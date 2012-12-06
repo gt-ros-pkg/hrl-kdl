@@ -4,7 +4,7 @@
 #
 # Copyright (c) 2012, Georgia Tech Research Corporation
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #     * Redistributions of source code must retain the above copyright
@@ -15,7 +15,7 @@
 #     * Neither the name of the Georgia Tech Research Corporation nor the
 #       names of its contributors may be used to endorse or promote products
 #       derived from this software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY GEORGIA TECH RESEARCH CORPORATION ''AS IS'' AND
 # ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -114,6 +114,7 @@ class KDLKinematics(object):
 
         self._fk_kdl = kdl.ChainFkSolverPos_recursive(self.chain)
         self._ik_v_kdl = kdl.ChainIkSolverVel_pinv(self.chain)
+        self._ik_p_kdl = kdl.ChainIkSolverPos_NR(self.chain, self._fk_kdl, self._ik_v_kdl)
         self._jac_kdl = kdl.ChainJntToJacSolver(self.chain)
         self._dyn_kdl = kdl.ChainDynParam(self.chain, kdl.Vector.Zero())
 
@@ -164,8 +165,9 @@ class KDLKinematics(object):
 
     def _do_kdl_fk(self, q, link_number):
         endeffec_frame = kdl.Frame()
-        kinematics_status = self._fk_kdl.JntToCart(joint_list_to_kdl(q), endeffec_frame,
-                                                  link_number)
+        kinematics_status = self._fk_kdl.JntToCart(joint_list_to_kdl(q),
+                                                   endeffec_frame,
+                                                   link_number)
         if kinematics_status >= 0:
             p = endeffec_frame.p
             M = endeffec_frame.M
@@ -240,6 +242,45 @@ class KDLKinematics(object):
         q_kdl = joint_list_to_kdl(q)
         self._jac_kdl.JntToJac(q_kdl, j_kdl)
         return kdl_to_mat(j_kdl)
+
+    ## compute Jacobian at point pos.
+    # p is in the ground coord frame.
+    def point_jacobian(self, q, pos=None):
+        print "NUmber of angles: ", len(q)
+        if pos == None:
+            pos = self.forward(q)[:3,3]
+
+        v_list = []
+        w_list = []
+        print "Position: ", pos
+        for i, joint in enumerate(self.get_link_names()):
+            joint_kdl = self.chain.getSegment(i).getJoint()
+            if joint_kdl.getTypeName() == 'None':
+                continue
+            print "Getting jacobian for %i, %s" %(i, joint)
+            mat = self.forward(q, joint)
+            print "Matrix:\r\n"
+            print mat
+            p = mat[:3,3]
+            print "p: ", p
+            rot = mat[:3,:3]
+            print "rot: ",rot
+            vec_joint_to_pos = np.array(pos.T - p.T)
+            print "vec_joint_to_pos: ", vec_joint_to_pos
+            #z_idx = self.chain.getSegment(i).getJoint().getType() - 1
+#            print "z-index: ", z_idx
+            # An assumption here is that the KDL z-axis and PR2 z-axis
+            # are identical
+            a_of_rot = joint_kdl.JointAxis()
+            #convert from pykdl_vector to list
+            axis_of_rotation = [a_of_rot[0], a_of_rot[1], a_of_rot[2]]
+            print "axis_of_rotation: ", axis_of_rotation
+            v_list.append(np.matrix(np.cross(axis_of_rotation, vec_joint_to_pos)).T)
+            w_list.append(axis_of_rotation)
+
+        J = np.row_stack((np.column_stack(v_list), np.column_stack(w_list)))
+        print "Jacobian: ", J
+        return J
 
     ##
     # Returns the joint space mass matrix at the end_link for the given joint angles.

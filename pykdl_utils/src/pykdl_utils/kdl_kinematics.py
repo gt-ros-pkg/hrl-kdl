@@ -120,13 +120,13 @@ class KDLKinematics(object):
 
     ##
     # @return List of link names in the kinematic chain.
-    def get_link_names(self):
-        return self.urdf.get_chain(self.base_link, self.end_link, joints=False)
+    def get_link_names(self, joints=False, fixed=True):
+        return self.urdf.get_chain(self.base_link, self.end_link, joints, fixed)
 
     ##
     # @return List of joint names in the kinematic chain.
-    def get_joint_names(self):
-        return self.urdf.get_chain(self.base_link, self.end_link, links=False, fixed=False)
+    def get_joint_names(self, links=False, fixed=False):
+        return self.urdf.get_chain(self.base_link, self.end_link, links, fixed)
 
     ##
     # Forward kinematics on the given joint angles, returning the location of the
@@ -246,17 +246,15 @@ class KDLKinematics(object):
     ## compute Jacobian at point pos.
     # p is in the ground coord frame.
     def point_jacobian(self, q, pos=None):
-        print "NUmber of angles: ", len(q)
+        #print "Number of angles: ", len(q)
         if pos == None:
             pos = self.forward(q)[:3,3]
+        #print "Position: ", pos
 
-        v_list = []
-        w_list = []
-        print "Position: ", pos
-        for i, joint in enumerate(self.get_link_names()):
+        vel_list = []
+        omega_list = []
+        for i, joint in enumerate(self.get_link_names(fixed=False)):
             joint_kdl = self.chain.getSegment(i).getJoint()
-            if joint_kdl.getTypeName() == 'None':
-                continue
             print "Getting jacobian for %i, %s" %(i, joint)
             mat = self.forward(q, joint)
             print "Matrix:\r\n"
@@ -275,10 +273,10 @@ class KDLKinematics(object):
             #convert from pykdl_vector to list
             axis_of_rotation = [a_of_rot[0], a_of_rot[1], a_of_rot[2]]
             print "axis_of_rotation: ", axis_of_rotation
-            v_list.append(np.matrix(np.cross(axis_of_rotation, vec_joint_to_pos)).T)
-            w_list.append(axis_of_rotation)
+            vel_list.append(np.matrix(np.cross(axis_of_rotation, vec_joint_to_pos)).T)
+            omega_list.append(axis_of_rotation)
 
-        J = np.row_stack((np.column_stack(v_list), np.column_stack(w_list)))
+        J = np.row_stack((np.column_stack(vel_list), np.column_stack(omega_list)))
         print "Jacobian: ", J
         return J
 

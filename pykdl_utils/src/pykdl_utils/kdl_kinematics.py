@@ -250,28 +250,23 @@ class KDLKinematics(object):
     def point_jacobian(self, q, pos=None):
         if pos == None:
             pos = self.forward(q)[:3,3]
-        print "Calculating Jacobian at point: %s" %pos
 
         vel_list = []
         omega_list = []
-        for i, joint in enumerate(self.get_link_names()):
+        for i in xrange(self.chain.getNrOfSegments()):
             joint_kdl = self.chain.getSegment(i).getJoint()
             if joint_kdl.getTypeName() == 'None':
                 continue
-            mat = self.forward(q, joint)
+            mat = self.forward(q, self.chain.getSegment(i).getName())
             p = mat[:3,3]
             rot = mat[:3,:3]
             vec_joint_to_pos = np.array(pos.T - p.T)
-            a_of_rot = joint_kdl.JointAxis()
-            #convert from pykdl_vector to list
-            axis_of_rotation = [a_of_rot[0], a_of_rot[1], a_of_rot[2]]
-            #print "axis_of_rotation: ", axis_of_rotation
+            axis_of_rotation = [a for a in joint_kdl.JointAxis()]
             vel_list.append(np.matrix(np.cross(axis_of_rotation, vec_joint_to_pos)).T)
             omega_list.append(axis_of_rotation)
 
-        J = np.row_stack((np.column_stack(vel_list), np.column_stack(omega_list)))
-        print "Jacobian: ", J
-        return J
+        jac = np.row_stack((np.column_stack(vel_list), np.column_stack(omega_list)))
+        return jac
 
     ##
     # Returns the joint space mass matrix at the end_link for the given joint angles.

@@ -4,7 +4,7 @@
 #
 # Copyright (c) 2012, Georgia Tech Research Corporation
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #     * Redistributions of source code must retain the above copyright
@@ -15,7 +15,7 @@
 #     * Neither the name of the Georgia Tech Research Corporation nor the
 #       names of its contributors may be used to endorse or promote products
 #       derived from this software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY GEORGIA TECH RESEARCH CORPORATION ''AS IS'' AND
 # ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -40,10 +40,10 @@ from urdf_parser_py.urdf import URDF
 def euler_to_quat(r, p, y):
     sr, sp, sy = np.sin(r/2.0), np.sin(p/2.0), np.sin(y/2.0)
     cr, cp, cy = np.cos(r/2.0), np.cos(p/2.0), np.cos(y/2.0)
-    return [sr * cp * cy - cr * sp * sy,
-            cr * sp * cy + sr * cp * sy,
-            cr * cp * sy - sr * sp * cy,
-            cr * cp * cy + sr * sp * sy]
+    return [sr*cp*cy - cr*sp*sy,
+            cr*sp*cy + sr*cp*sy,
+            cr*cp*sy - sr*sp*cy,
+            cr*cp*cy + sr*sp*sy]
 
 def urdf_pose_to_kdl_frame(pose):
     pos = [0., 0., 0.]
@@ -53,7 +53,7 @@ def urdf_pose_to_kdl_frame(pose):
             pos = pose.position
         if pose.rotation is not None:
             rot = pose.rotation
-    return kdl.Frame(kdl.Rotation.Quaternion(*euler_to_quat(*rot)), 
+    return kdl.Frame(kdl.Rotation.Quaternion(*euler_to_quat(*rot)),
                      kdl.Vector(*pos))
 
 def urdf_joint_to_kdl_joint(jnt):
@@ -62,20 +62,26 @@ def urdf_joint_to_kdl_joint(jnt):
         return kdl.Joint(jnt.name, kdl.Joint.None)
     axis = kdl.Vector(*[float(s) for s in jnt.axis.split()])
     if jnt.joint_type == 'revolute':
-        return kdl.Joint(jnt.name, origin_frame.p, origin_frame.M * axis, kdl.Joint.RotAxis)
+        return kdl.Joint(jnt.name, origin_frame.p,
+                         origin_frame.M * axis, kdl.Joint.RotAxis)
     if jnt.joint_type == 'continuous':
-        return kdl.Joint(jnt.name, origin_frame.p, origin_frame.M * axis, kdl.Joint.RotAxis)
+        return kdl.Joint(jnt.name, origin_frame.p,
+                         origin_frame.M * axis, kdl.Joint.RotAxis)
     if jnt.joint_type == 'prismatic':
-        return kdl.Joint(jnt.name, origin_frame.p, origin_frame.M * axis, kdl.Joint.TransAxis)
+        return kdl.Joint(jnt.name, origin_frame.p,
+                         origin_frame.M * axis, kdl.Joint.TransAxis)
     print "Unknown joint type: %s." % jnt.joint_type
     return kdl.Joint(jnt.name, kdl.Joint.None)
 
 def urdf_inertial_to_kdl_rbi(i):
     origin = urdf_pose_to_kdl_frame(i.origin)
-    rbi = kdl.RigidBodyInertia(i.mass, origin.p, 
-                               kdl.RotationalInertia(i.matrix['ixx'], i.matrix['iyy'], 
-                                                     i.matrix['izz'], i.matrix['ixy'],
-                                                     i.matrix['ixz'], i.matrix['iyz']))
+    rbi = kdl.RigidBodyInertia(i.mass, origin.p,
+                               kdl.RotationalInertia(i.matrix['ixx'],
+                                                     i.matrix['iyy'],
+                                                     i.matrix['izz'],
+                                                     i.matrix['ixy'],
+                                                     i.matrix['ixz'],
+                                                     i.matrix['iyz']))
     return origin.M * rbi
 
 ##
@@ -93,7 +99,8 @@ def kdl_tree_from_urdf_model(urdf):
                     kdl_inert = kdl.RigidBodyInertia()
                 kdl_jnt = urdf_joint_to_kdl_joint(urdf.joints[joint])
                 kdl_origin = urdf_pose_to_kdl_frame(urdf.joints[joint].origin)
-                kdl_sgm = kdl.Segment(child_name, kdl_jnt, kdl_origin, kdl_inert)
+                kdl_sgm = kdl.Segment(child_name, kdl_jnt,
+                                      kdl_origin, kdl_inert)
                 tree.addSegment(kdl_sgm, parent)
                 add_children_to_tree(child_name)
     add_children_to_tree(root)
@@ -124,7 +131,8 @@ def main():
             num_non_fixed_joints += 1
     print "URDF non-fixed joints: %d;" % num_non_fixed_joints,
     print "KDL joints: %d" % tree.getNrOfJoints()
-    print "URDF joints: %d;" % len(robot.joints), "KDL segments: %d" % tree.getNrOfSegments()
+    print "URDF joints: %d; KDL segments: %d" %(len(robot.joints),
+                                                tree.getNrofSegments())
     import random
     base_link = robot.get_root()
     end_link = robot.links.keys()[random.randint(0, len(robot.links)-1)]

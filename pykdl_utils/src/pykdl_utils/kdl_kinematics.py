@@ -126,7 +126,9 @@ class KDLKinematics(object):
     ##
     # @return List of joint names in the kinematic chain.
     def get_joint_names(self, links=False, fixed=False):
-        return self.urdf.get_chain(self.base_link, self.end_link, links, fixed)
+        print "Called get_joint_names"
+        return self.urdf.get_chain(self.base_link, self.end_link,
+                                   links=links, fixed=fixed)
 
     ##
     # Forward kinematics on the given joint angles, returning the location of the
@@ -246,33 +248,24 @@ class KDLKinematics(object):
     ## compute Jacobian at point pos.
     # p is in the ground coord frame.
     def point_jacobian(self, q, pos=None):
-        #print "Number of angles: ", len(q)
         if pos == None:
             pos = self.forward(q)[:3,3]
-        #print "Position: ", pos
+        print "Calculating Jacobian at point: %s" %pos
 
         vel_list = []
         omega_list = []
-        for i, joint in enumerate(self.get_link_names(fixed=False)):
+        for i, joint in enumerate(self.get_link_names()):
             joint_kdl = self.chain.getSegment(i).getJoint()
-            print "Getting jacobian for %i, %s" %(i, joint)
+            if joint_kdl.getTypeName() == 'None':
+                continue
             mat = self.forward(q, joint)
-            print "Matrix:\r\n"
-            print mat
             p = mat[:3,3]
-            print "p: ", p
             rot = mat[:3,:3]
-            print "rot: ",rot
             vec_joint_to_pos = np.array(pos.T - p.T)
-            print "vec_joint_to_pos: ", vec_joint_to_pos
-            #z_idx = self.chain.getSegment(i).getJoint().getType() - 1
-#            print "z-index: ", z_idx
-            # An assumption here is that the KDL z-axis and PR2 z-axis
-            # are identical
             a_of_rot = joint_kdl.JointAxis()
             #convert from pykdl_vector to list
             axis_of_rotation = [a_of_rot[0], a_of_rot[1], a_of_rot[2]]
-            print "axis_of_rotation: ", axis_of_rotation
+            #print "axis_of_rotation: ", axis_of_rotation
             vel_list.append(np.matrix(np.cross(axis_of_rotation, vec_joint_to_pos)).T)
             omega_list.append(axis_of_rotation)
 

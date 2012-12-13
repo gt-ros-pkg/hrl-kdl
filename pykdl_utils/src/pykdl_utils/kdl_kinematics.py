@@ -261,9 +261,10 @@ class KDLKinematics(object):
             p = mat[:3,3]
             rot = mat[:3,:3]
             vec_joint_to_pos = np.array(pos.T - p.T)
-            axis_of_rotation = [a for a in joint_kdl.JointAxis()]
-            vel_list.append(np.matrix(np.cross(axis_of_rotation, vec_joint_to_pos)).T)
-            omega_list.append(axis_of_rotation)
+            axis_of_rotation = np.mat([a for a in joint_kdl.JointAxis()])
+            z = rot*axis_of_rotation.T
+            vel_list.append(np.matrix(np.cross(z.A1, vec_joint_to_pos)).T)
+            omega_list.append(z)
 
         jac = np.row_stack((np.column_stack(vel_list), np.column_stack(omega_list)))
         return jac

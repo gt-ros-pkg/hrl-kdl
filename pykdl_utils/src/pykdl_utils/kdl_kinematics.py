@@ -126,7 +126,6 @@ class KDLKinematics(object):
     ##
     # @return List of joint names in the kinematic chain.
     def get_joint_names(self, links=False, fixed=False):
-        print "Called get_joint_names"
         return self.urdf.get_chain(self.base_link, self.end_link,
                                    links=links, fixed=fixed)
 

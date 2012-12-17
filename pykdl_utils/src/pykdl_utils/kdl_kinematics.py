@@ -137,7 +137,10 @@ class KDLKinematics(object):
             end_link = self.get_link_names(fixed=False)[link_number]
         else:
             end_link = None
-        return self.forward(q, end_link)
+        homo_mat = self.forward(q, end_link)
+        pos, rot = PoseConv.to_pos_rot(homo_mat)
+        return pos, rot
+
 
     ##
     # Forward kinematics on the given joint angles, returning the location of the

@@ -129,6 +129,16 @@ class KDLKinematics(object):
         return self.urdf.get_chain(self.base_link, self.end_link,
                                    links=links, fixed=fixed)
 
+    def get_joint_limits(self):
+        return self.joint_limits_lower, self.joint_limits_upper
+
+    def FK(self, q, link_number=None):
+        if link_number is not None:
+            end_link = self.get_link_names(fixed=False)[link_number]
+        else:
+            end_link = None
+        return self.forward(q, end_link)
+
     ##
     # Forward kinematics on the given joint angles, returning the location of the
     # end_link in the base_link's frame.
@@ -238,18 +248,17 @@ class KDLKinematics(object):
     # Returns the Jacobian matrix at the end_link for the given joint angles.
     # @param q List of joint angles.
     # @return 6xN np.mat Jacobian
-    def jacobian(self, q):
-        j_kdl = kdl.Jacobian(self.num_joints)
-        q_kdl = joint_list_to_kdl(q)
-        self._jac_kdl.JntToJac(q_kdl, j_kdl)
-        return kdl_to_mat(j_kdl)
+    #def jacobian(self, q):
+    #    j_kdl = kdl.Jacobian(self.num_joints)
+    #    q_kdl = joint_list_to_kdl(q)
+    #    self._jac_kdl.JntToJac(q_kdl, j_kdl)
+    #    return kdl_to_mat(j_kdl)
 
     ## compute Jacobian at point pos.
     # p is in the ground coord frame.
-    def point_jacobian(self, q, pos=None):
+    def jacobian(self, q, pos=None):
         if pos == None:
             pos = self.forward(q)[:3,3]
-
         vel_list = []
         omega_list = []
         for i in xrange(self.chain.getNrOfSegments()):
@@ -264,7 +273,6 @@ class KDLKinematics(object):
             z = rot*axis_of_rotation.T
             vel_list.append(np.matrix(np.cross(z.A1, vec_joint_to_pos)).T)
             omega_list.append(z)
-
         jac = np.row_stack((np.column_stack(vel_list), np.column_stack(omega_list)))
         return jac
 

@@ -240,7 +240,5 @@ def main():
             tf_pose = PoseConv.to_homo_mat(tf_list.lookupTransform(base_link, end_link, t))
             print "Error with TF:", np.linalg.norm(kdl_pose - tf_pose)
 
-
-
 if __name__ == "__main__":
     main()

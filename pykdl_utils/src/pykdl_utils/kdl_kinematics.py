@@ -4,7 +4,7 @@
 #
 # Copyright (c) 2012, Georgia Tech Research Corporation
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #     * Redistributions of source code must retain the above copyright
@@ -15,7 +15,7 @@
 #     * Neither the name of the Georgia Tech Research Corporation nor the
 #       names of its contributors may be used to endorse or promote products
 #       derived from this software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY GEORGIA TECH RESEARCH CORPORATION ''AS IS'' AND
 # ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -114,18 +114,33 @@ class KDLKinematics(object):
 
         self._fk_kdl = kdl.ChainFkSolverPos_recursive(self.chain)
         self._ik_v_kdl = kdl.ChainIkSolverVel_pinv(self.chain)
+        self._ik_p_kdl = kdl.ChainIkSolverPos_NR(self.chain, self._fk_kdl, self._ik_v_kdl)
         self._jac_kdl = kdl.ChainJntToJacSolver(self.chain)
         self._dyn_kdl = kdl.ChainDynParam(self.chain, kdl.Vector.Zero())
 
     ##
     # @return List of link names in the kinematic chain.
-    def get_link_names(self):
-        return self.urdf.get_chain(self.base_link, self.end_link, joints=False)
+    def get_link_names(self, joints=False, fixed=True):
+        return self.urdf.get_chain(self.base_link, self.end_link, joints, fixed)
 
     ##
     # @return List of joint names in the kinematic chain.
-    def get_joint_names(self):
-        return self.urdf.get_chain(self.base_link, self.end_link, links=False, fixed=False)
+    def get_joint_names(self, links=False, fixed=False):
+        return self.urdf.get_chain(self.base_link, self.end_link,
+                                   links=links, fixed=fixed)
+
+    def get_joint_limits(self):
+        return self.joint_limits_lower, self.joint_limits_upper
+
+    def FK(self, q, link_number=None):
+        if link_number is not None:
+            end_link = self.get_link_names(fixed=False)[link_number]
+        else:
+            end_link = None
+        homo_mat = self.forward(q, end_link)
+        pos, rot = PoseConv.to_pos_rot(homo_mat)
+        return pos, rot
+
 
     ##
     # Forward kinematics on the given joint angles, returning the location of the
@@ -164,8 +179,9 @@ class KDLKinematics(object):
 
     def _do_kdl_fk(self, q, link_number):
         endeffec_frame = kdl.Frame()
-        kinematics_status = self._fk_kdl.JntToCart(joint_list_to_kdl(q), endeffec_frame,
-                                                  link_number)
+        kinematics_status = self._fk_kdl.JntToCart(joint_list_to_kdl(q),
+                                                   endeffec_frame,
+                                                   link_number)
         if kinematics_status >= 0:
             p = endeffec_frame.p
             M = endeffec_frame.M
@@ -235,11 +251,33 @@ class KDLKinematics(object):
     # Returns the Jacobian matrix at the end_link for the given joint angles.
     # @param q List of joint angles.
     # @return 6xN np.mat Jacobian
-    def jacobian(self, q):
-        j_kdl = kdl.Jacobian(self.num_joints)
-        q_kdl = joint_list_to_kdl(q)
-        self._jac_kdl.JntToJac(q_kdl, j_kdl)
-        return kdl_to_mat(j_kdl)
+    #def jacobian(self, q):
+    #    j_kdl = kdl.Jacobian(self.num_joints)
+    #    q_kdl = joint_list_to_kdl(q)
+    #    self._jac_kdl.JntToJac(q_kdl, j_kdl)
+    #    return kdl_to_mat(j_kdl)
+
+    ## compute Jacobian at point pos.
+    # p is in the ground coord frame.
+    def jacobian(self, q, pos=None):
+        if pos == None:
+            pos = self.forward(q)[:3,3]
+        vel_list = []
+        omega_list = []
+        for i in xrange(self.chain.getNrOfSegments()):
+            joint_kdl = self.chain.getSegment(i).getJoint()
+            if joint_kdl.getTypeName() == 'None':
+                continue
+            mat = self.forward(q, self.chain.getSegment(i).getName())
+            p = mat[:3,3]
+            rot = mat[:3,:3]
+            vec_joint_to_pos = np.array(pos.T - p.T)
+            axis_of_rotation = np.mat([a for a in joint_kdl.JointAxis()])
+            z = rot*axis_of_rotation.T
+            vel_list.append(np.matrix(np.cross(z.A1, vec_joint_to_pos)).T)
+            omega_list.append(z)
+        jac = np.row_stack((np.column_stack(vel_list), np.column_stack(omega_list)))
+        return jac
 
     ##
     # Returns the joint space mass matrix at the end_link for the given joint angles.

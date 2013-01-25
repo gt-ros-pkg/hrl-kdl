@@ -251,33 +251,18 @@ class KDLKinematics(object):
     # Returns the Jacobian matrix at the end_link for the given joint angles.
     # @param q List of joint angles.
     # @return 6xN np.mat Jacobian
-    #def jacobian(self, q):
-    #    j_kdl = kdl.Jacobian(self.num_joints)
-    #    q_kdl = joint_list_to_kdl(q)
-    #    self._jac_kdl.JntToJac(q_kdl, j_kdl)
-    #    return kdl_to_mat(j_kdl)
-
-    ## compute Jacobian at point pos.
-    # p is in the ground coord frame.
+    # @param pos Point in base frame where the jacobian is acting on.
+    #            If None, we assume the end_link
     def jacobian(self, q, pos=None):
-        if pos == None:
-            pos = self.forward(q)[:3,3]
-        vel_list = []
-        omega_list = []
-        for i in xrange(self.chain.getNrOfSegments()):
-            joint_kdl = self.chain.getSegment(i).getJoint()
-            if joint_kdl.getTypeName() == 'None':
-                continue
-            mat = self.forward(q, self.chain.getSegment(i).getName())
-            p = mat[:3,3]
-            rot = mat[:3,:3]
-            vec_joint_to_pos = np.array(pos.T - p.T)
-            axis_of_rotation = np.mat([a for a in joint_kdl.JointAxis()])
-            z = rot*axis_of_rotation.T
-            vel_list.append(np.matrix(np.cross(z.A1, vec_joint_to_pos)).T)
-            omega_list.append(z)
-        jac = np.row_stack((np.column_stack(vel_list), np.column_stack(omega_list)))
-        return jac
+        j_kdl = kdl.Jacobian(self.num_joints)
+        q_kdl = joint_list_to_kdl(q)
+        self._jac_kdl.JntToJac(q_kdl, j_kdl)
+        if pos is not None:
+            ee_pos = self.forward(q)[:3,3]
+            pos_kdl = kdl.Vector(pos[0]-ee_pos[0], pos[1]-ee_pos[1], 
+                                  pos[2]-ee_pos[2])
+            j_kdl.changeRefPoint(pos_kdl)
+        return kdl_to_mat(j_kdl)
 
     ##
     # Returns the joint space mass matrix at the end_link for the given joint angles.

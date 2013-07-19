@@ -31,11 +31,8 @@
 
 import numpy as np
 
-import roslib
-roslib.load_manifest("pykdl_utils")
 import PyKDL as kdl
-
-from urdf_parser_py.urdf import URDF
+from urdf_parser_py.urdf import Robot
 
 def euler_to_quat(r, p, y):
     sr, sp, sy = np.sin(r/2.0), np.sin(p/2.0), np.sin(y/2.0)
@@ -60,7 +57,7 @@ def urdf_joint_to_kdl_joint(jnt):
     origin_frame = urdf_pose_to_kdl_frame(jnt.origin)
     if jnt.joint_type == 'fixed':
         return kdl.Joint(jnt.name, kdl.Joint.None)
-    axis = kdl.Vector(*[float(s) for s in jnt.axis.split()])
+    axis = kdl.Vector(*jnt.axis)
     if jnt.joint_type == 'revolute':
         return kdl.Joint(jnt.name, origin_frame.p,
                          origin_frame.M * axis, kdl.Joint.RotAxis)
@@ -76,12 +73,12 @@ def urdf_joint_to_kdl_joint(jnt):
 def urdf_inertial_to_kdl_rbi(i):
     origin = urdf_pose_to_kdl_frame(i.origin)
     rbi = kdl.RigidBodyInertia(i.mass, origin.p,
-                               kdl.RotationalInertia(i.matrix['ixx'],
-                                                     i.matrix['iyy'],
-                                                     i.matrix['izz'],
-                                                     i.matrix['ixy'],
-                                                     i.matrix['ixz'],
-                                                     i.matrix['iyz']))
+                               kdl.RotationalInertia(i.inertia.ixx,
+                                                     i.inertia.iyy,
+                                                     i.inertia.izz,
+                                                     i.inertia.ixy,
+                                                     i.inertia.ixz,
+                                                     i.inertia.iyz))
     return origin.M * rbi
 
 ##
@@ -92,13 +89,13 @@ def kdl_tree_from_urdf_model(urdf):
     def add_children_to_tree(parent):
         if parent in urdf.child_map:
             for joint, child_name in urdf.child_map[parent]:
-                child = urdf.links[child_name]
+                child = urdf.link_map[child_name]
                 if child.inertial is not None:
                     kdl_inert = urdf_inertial_to_kdl_rbi(child.inertial)
                 else:
                     kdl_inert = kdl.RigidBodyInertia()
-                kdl_jnt = urdf_joint_to_kdl_joint(urdf.joints[joint])
-                kdl_origin = urdf_pose_to_kdl_frame(urdf.joints[joint].origin)
+                kdl_jnt = urdf_joint_to_kdl_joint(urdf.joint_map[joint])
+                kdl_origin = urdf_pose_to_kdl_frame(urdf.joint_map[joint].origin)
                 kdl_sgm = kdl.Segment(child_name, kdl_jnt,
                                       kdl_origin, kdl_inert)
                 tree.addSegment(kdl_sgm, parent)
@@ -121,21 +118,23 @@ def main():
     if len(sys.argv) == 2 and (sys.argv[1] == "-h" or sys.argv[1] == "--help"):
         usage()
     if (len(sys.argv) == 1):
-        robot = URDF.load_from_parameter_server(verbose=False)
+        robot = Robot.from_parameter_server()
     else:
-        robot = URDF.load_xml_file(sys.argv[1], verbose=False)
+        f = file(sys.argv[1], 'r')
+        robot = Robot.from_xml_string(f.read())
+        f.close()
     tree = kdl_tree_from_urdf_model(robot)
     num_non_fixed_joints = 0
-    for j in robot.joints:
-        if robot.joints[j].joint_type != 'fixed':
+    for j in robot.joint_map:
+        if robot.joint_map[j].joint_type != 'fixed':
             num_non_fixed_joints += 1
     print "URDF non-fixed joints: %d;" % num_non_fixed_joints,
     print "KDL joints: %d" % tree.getNrOfJoints()
-    print "URDF joints: %d; KDL segments: %d" %(len(robot.joints),
-                                                tree.getNrofSegments())
+    print "URDF joints: %d; KDL segments: %d" %(len(robot.joint_map),
+                                                tree.getNrOfSegments())
     import random
     base_link = robot.get_root()
-    end_link = robot.links.keys()[random.randint(0, len(robot.links)-1)]
+    end_link = robot.link_map.keys()[random.randint(0, len(robot.link_map)-1)]
     chain = tree.getChain(base_link, end_link)
     print "Root link: %s; Random end link: %s" % (base_link, end_link)
     for i in range(chain.getNrOfSegments()):

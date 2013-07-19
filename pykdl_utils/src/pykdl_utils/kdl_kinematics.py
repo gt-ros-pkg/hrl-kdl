@@ -31,22 +31,21 @@
 
 import numpy as np
 
-import roslib
-roslib.load_manifest("pykdl_utils")
-
 import PyKDL as kdl
 import rospy
 
 import hrl_geom.transformations as trans
 from hrl_geom.pose_converter import PoseConv
 from kdl_parser import kdl_tree_from_urdf_model
-from urdf_parser_py.urdf import URDF
+from urdf_parser_py.urdf import Robot
 
 def create_kdl_kin(base_link, end_link, urdf_filename=None):
     if urdf_filename is None:
-        robot = URDF.load_from_parameter_server(verbose=False)
+        robot = Robot.from_parameter_server()
     else:
-        robot = URDF.load_xml_file(urdf_filename, verbose=False)
+        f = file(urdf_filename, 'r')
+        robot = Robot.from_xml_string(f.read())
+        f.close()
     return KDLKinematics(robot, base_link, end_link)
 
 ##
@@ -80,23 +79,23 @@ class KDLKinematics(object):
         self.joint_safety_upper = []
         self.joint_types = []
         for jnt_name in self.get_joint_names():
-            jnt = urdf.joints[jnt_name]
-            if jnt.limits is not None:
-                self.joint_limits_lower.append(jnt.limits.lower)
-                self.joint_limits_upper.append(jnt.limits.upper)
+            jnt = urdf.joint_map[jnt_name]
+            if jnt.limit is not None:
+                self.joint_limits_lower.append(jnt.limit.lower)
+                self.joint_limits_upper.append(jnt.limit.upper)
             else:
                 self.joint_limits_lower.append(None)
                 self.joint_limits_upper.append(None)
-            if jnt.safety is not None:
-                self.joint_safety_lower.append(jnt.safety.lower)
-                self.joint_safety_upper.append(jnt.safety.upper)
-            elif jnt.limits is not None:
-                self.joint_safety_lower.append(jnt.limits.lower)
-                self.joint_safety_upper.append(jnt.limits.upper)
+            if jnt.safety_controller is not None:
+                self.joint_safety_lower.append(jnt.safety_controller.lower)
+                self.joint_safety_upper.append(jnt.safety_controller.upper)
+            elif jnt.limit is not None:
+                self.joint_safety_lower.append(jnt.limit.lower)
+                self.joint_safety_upper.append(jnt.limit.upper)
             else:
                 self.joint_safety_lower.append(None)
                 self.joint_safety_upper.append(None)
-            self.joint_types.append(jnt.joint_type)
+            self.joint_types.append(jnt.type)
         def replace_none(x, v):
             if x is None:
                 return v
@@ -343,7 +342,7 @@ class KDLKinematics(object):
     # maintaining a posture, and prioritizing rotation or position.
     def inverse_biased(self, pose, q_init, q_bias, q_bias_weights, rot_weight=1., 
                        bias_vel=0.01, num_iter=100):
-        # This code is potentially volitile
+        # This code is potentially volatile
         q_out = np.mat(self.inverse_search(pose)).T
         for i in range(num_iter):
             pos_fk, rot_fk = PoseConv.to_pos_rot(self.forward(q_out))
@@ -369,7 +368,7 @@ class KDLKinematics(object):
     # inverse_biased with random restarts.
     def inverse_biased_search(self, pos, rot, q_bias, q_bias_weights, rot_weight=1., 
                               bias_vel=0.01, num_iter=100, num_search=20):
-        # This code is potentially volitile
+        # This code is potentially volatile
         q_sol_min = []
         min_val = 1000000.
         for i in range(num_search):
@@ -420,14 +419,16 @@ def main():
     if len(sys.argv) == 2 and (sys.argv[1] == "-h" or sys.argv[1] == "--help"):
         usage()
     if (len(sys.argv) == 1):
-        robot = URDF.load_from_parameter_server(verbose=False)
+        robot = Robot.from_parameter_server()
     else:
-        robot = URDF.load_xml_file(sys.argv[1], verbose=False)
+        f = file(sys.argv[1], 'r')
+        robot = Robot.from_xml_string(f.read())
+        f.close()
 
     if True:
         import random
         base_link = robot.get_root()
-        end_link = robot.links.keys()[random.randint(0, len(robot.links)-1)]
+        end_link = robot.link_map.keys()[random.randint(0, len(robot.link_map)-1)]
         print "Root link: %s; Random end link: %s" % (base_link, end_link)
         kdl_kin = KDLKinematics(robot, base_link, end_link)
         q = kdl_kin.random_joint_angles()
@@ -455,7 +456,7 @@ def main():
         num_times = 20
         while not rospy.is_shutdown() and num_times > 0:
             base_link = robot.get_root()
-            end_link = robot.links.keys()[random.randint(0, len(robot.links)-1)]
+            end_link = robot.link_map.keys()[random.randint(0, len(robot.link_map)-1)]
             print "Root link: %s; Random end link: %s" % (base_link, end_link)
             kdl_kin = KDLKinematics(robot, base_link, end_link)
             q = kdl_kin.random_joint_angles()

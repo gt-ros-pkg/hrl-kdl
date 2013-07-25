@@ -24,13 +24,14 @@
   <!-- Url tags are optional, but mutiple are allowed, one per tag -->
   <!-- Optional attribute type can be: website, bugtracker, or repository -->
   <!-- Example: -->
-  <!-- <url type="website">http://ros.org/wiki/hrl_kdl</url> -->
+  <url type="website">http://ros.org/wiki/hrl_kdl</url>
 
 
   <!-- Author tags are optional, mutiple are allowed, one per tag -->
   <!-- Authors do not have to be maintianers, but could be -->
   <!-- Example: -->
   <!-- <author email="jane.doe@example.com">Jane Doe</author> -->
+  <author email="kphawkins@gatech.edu">Kelsey Hawkins</author>
 
 
   <!-- The *_depend tags are used to specify dependencies -->

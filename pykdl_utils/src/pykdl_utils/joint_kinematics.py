@@ -32,9 +32,6 @@
 
 import numpy as np
 
-import roslib
-roslib.load_manifest('pykdl_utils')
-
 import rospy
 from sensor_msgs.msg import JointState
 
@@ -43,9 +40,11 @@ from pykdl_utils.kdl_kinematics import KDLKinematics
 
 def create_joint_kin(base_link, end_link, urdf_filename=None, timeout=1.):
     if urdf_filename is None:
-        robot = URDF.load_from_parameter_server(verbose=False)
+        robot = URDF.from_parameter_server()
     else:
-        robot = URDF.load_xml_file(urdf_filename, verbose=False)
+        f = file(urdf_filename, 'r')
+        robot = Robot.from_xml_string(f.read())
+        f.close()
     return JointKinematics(robot, base_link, end_link, timeout=timeout)
 
 ##
@@ -95,7 +94,7 @@ class JointKinematics(KDLKinematics):
         start_time = rospy.get_time()
         r = rospy.Rate(100)
         while not rospy.is_shutdown() and rospy.get_time() - start_time < timeout:
-            if self._joint_angles is not None:
+            if self._joint_efforts is not None:
                 return True
             r.sleep()
         if not rospy.is_shutdown():
@@ -212,14 +211,16 @@ def main():
     if len(sys.argv) == 2 and (sys.argv[1] == "-h" or sys.argv[1] == "--help"):
         usage()
     if (len(sys.argv) == 1):
-        robot = URDF.load_from_parameter_server(verbose=False)
+        robot = URDF.from_parameter_server()
     else:
-        robot = URDF.load_xml_file(sys.argv[1], verbose=False)
+        f = file(sys.argv[1], 'r')
+        robot = Robot.from_xml_string(f.read())
+        f.close()
 
     if True:
         import random
         base_link = robot.get_root()
-        end_link = robot.links.keys()[random.randint(0, len(robot.links)-1)]
+        end_link = robot.link_map.keys()[random.randint(0, len(robot.link_map)-1)]
         print "Root link: %s; Random end link: %s" % (base_link, end_link)
         js_kin = JointKinematics(robot, base_link, end_link)
         print "Joint angles:", js_kin.get_joint_angles()

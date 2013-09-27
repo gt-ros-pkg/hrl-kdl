@@ -4,7 +4,7 @@ project(pykdl_utils)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS geometry_msgs hrl_geom python_orocos_kdl rospy sensor_msgs tf urdf_parser_py)
+find_package(catkin REQUIRED COMPONENTS geometry_msgs hrl_geom rospy sensor_msgs tf urdf_parser_py)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)

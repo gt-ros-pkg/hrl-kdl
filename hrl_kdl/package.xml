@@ -46,7 +46,8 @@
   <!-- Use test_depend for packages you need only for testing: -->
   <!--   <test_depend>gtest</test_depend> -->
   <buildtool_depend>catkin</buildtool_depend>
-
+  <run_depend>hrl_geom</run_depend>
+  <run_depend>pykdl_utils</run_depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

@@ -41,6 +41,20 @@ from geometry_msgs.msg import Transform, TransformStamped, Vector3
 from geometry_msgs.msg import Twist, TwistStamped
 import hrl_geom.transformations as trans
 
+def rot_mat_to_axis_angle(R):
+    ang = np.arccos((np.trace(R) - 1.0)/2.0)
+    axis = np.array([R[2,1]-R[1,2], R[0,2]-R[2,0], R[1,0]-R[0,1]])
+    axis = axis / np.linalg.norm(axis)
+    return (axis, ang)
+
+def axis_angle_to_rot_mat(axis, ang):
+    axis = axis / np.linalg.norm(axis)
+    K = np.mat([[0.0, -axis[2], axis[1]],
+                [axis[2], 0.0, -axis[0]],
+                [-axis[1], axis[0], 0.0]])
+    I = np.mat(np.eye(3))
+    return I + np.sin(ang)*K + (1.0 - np.cos(ang))*K*K
+
 ##
 # Static class with a set of conversion functions for converting any of the supported
 # pose types into any of the others without having to provide the type explicity.
@@ -57,7 +71,8 @@ class PoseConv(object):
         'homo_mat',
         'pos_rot',
         'pos_quat',
-        'pos_euler']
+        'pos_euler',
+        'pos_axis_angle']
 
     ##
     # Returns a string describing the type of the given pose as
@@ -65,7 +80,7 @@ class PoseConv(object):
     @staticmethod
     def get_type(*args):
         try:
-            if type(args[0]) == str:
+            if type(args[0]) is str:
                 return PoseConv.get_type(*args[1:])
             if len(args) == 1:
                 if type(args[0]) is Pose:
@@ -88,21 +103,25 @@ class PoseConv(object):
                     return 'homo_mat'
                 elif isinstance(args[0], (tuple, list)) and len(args[0]) == 2:
                     pos_arg = np.mat(args[0][0])
-                    rot_arg = np.mat(args[0][1])
                     if pos_arg.shape != (1, 3) and pos_arg.shape != (3, 1):
                         return None
-                    if rot_arg.shape == (3, 3):
-                        return 'pos_rot'
-                    else:
-                        if 1 not in rot_arg.shape:
-                            return None
-                        rot_arg = rot_arg.tolist()[0]
-                        if len(rot_arg) == 3:
-                            return 'pos_euler'
-                        elif len(rot_arg) == 4:
-                            return 'pos_quat'
+                    if isinstance(args[0][1], (tuple, list)) and len(args[0][1]) == 2:
+                        if len(args[0][1][0]) == 3 and np.array(args[0][1][1]).size == 1:
+                            return 'pos_axis_angle'
                         else:
                             return None
+                    rot_arg = np.mat(args[0][1])
+                    if rot_arg.shape == (3, 3):
+                        return 'pos_rot'
+                    if 1 not in rot_arg.shape:
+                        return None
+                    rot_arg = rot_arg.tolist()[0]
+                    if len(rot_arg) == 3:
+                        return 'pos_euler'
+                    elif len(rot_arg) == 4:
+                        return 'pos_quat'
+                    else:
+                        return None
             elif len(args) == 2:
                 return PoseConv.get_type(((args[0], args[1]),))
         except:
@@ -268,6 +287,17 @@ class PoseConv(object):
         else:
             return copy.copy(list(homo_mat[:3,3].T.A[0])), copy.copy(euler_rot)
 
+    ##
+    # @return (3 list, (3 list, float))
+    @staticmethod
+    def to_pos_axis_angle(*args):
+        header, homo_mat, quat_rot, _ = PoseConv._make_generic(args)
+        if homo_mat is None:
+            rospy.logwarn("[pose_converter] Unknown pose type.")
+            return None, None
+        else:
+            return copy.copy(list(homo_mat[:3,3].T.A[0])), rot_mat_to_axis_angle(homo_mat[:3,:3])
+
     @staticmethod
     def _make_generic(args):
         try:
@@ -326,22 +356,27 @@ class PoseConv(object):
                 elif pose_type == 'homo_mat':
                     return (None, np.mat(args[0]), trans.quaternion_from_matrix(args[0]).tolist(),
                             trans.euler_from_matrix(args[0]))
-                elif pose_type in ['pos_rot', 'pos_euler', 'pos_quat']:
+                elif pose_type in ['pos_rot', 'pos_euler', 'pos_quat', 'pos_axis_angle']:
                     pos_arg = np.mat(args[0][0])
-                    rot_arg = np.mat(args[0][1])
                     if pos_arg.shape == (1, 3):
                         # matrix is row, convert to column
                         pos = pos_arg.T
                     elif pos_arg.shape == (3, 1):
                         pos = pos_arg
 
-                    if pose_type == 'pos_rot':
+                    if pose_type == 'pos_axis_angle':
+                        homo_mat = np.mat(np.eye(4))
+                        homo_mat[:3,:3] = axis_angle_to_rot_mat(args[0][1][0], args[0][1][1])
+                        quat = trans.quaternion_from_matrix(homo_mat)
+                        rot_euler = trans.euler_from_matrix(homo_mat)
+                    elif pose_type == 'pos_rot':
                         # rotation matrix
                         homo_mat = np.mat(np.eye(4))
-                        homo_mat[:3,:3] = rot_arg
+                        homo_mat[:3,:3] = np.mat(args[0][1])
                         quat = trans.quaternion_from_matrix(homo_mat)
                         rot_euler = trans.euler_from_matrix(homo_mat)
                     else:
+                        rot_arg = np.mat(args[0][1])
                         if rot_arg.shape[1] == 1:
                             rot_arg = rot_arg.T
                         rot_list = rot_arg.tolist()[0]

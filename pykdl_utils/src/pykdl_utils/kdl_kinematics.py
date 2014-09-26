@@ -34,6 +34,7 @@ import numpy as np
 import PyKDL as kdl
 import rospy
 
+from sensor_msgs.msg import JointState
 import hrl_geom.transformations as trans
 from hrl_geom.pose_converter import PoseConv
 from kdl_parser import kdl_tree_from_urdf_model
@@ -116,6 +117,28 @@ class KDLKinematics(object):
         self._ik_p_kdl = kdl.ChainIkSolverPos_NR(self.chain, self._fk_kdl, self._ik_v_kdl)
         self._jac_kdl = kdl.ChainJntToJacSolver(self.chain)
         self._dyn_kdl = kdl.ChainDynParam(self.chain, kdl.Vector.Zero())
+
+    def extract_joint_state(self, js, joint_names=None):
+        if joint_names is None:
+            joint_names = self.get_joint_names()
+        q   = np.zeros(len(joint_names))
+        qd  = np.zeros(len(joint_names))
+        eff = np.zeros(len(joint_names))
+        for i, joint_name in enumerate(joint_names):
+            js_idx = js.name.index(joint_name)
+            if js_idx < len(js.position) and q is not None:
+                q[i]   = js.position[js_idx]
+            else:
+                q = None
+            if js_idx < len(js.velocity) and qd is not None:
+                qd[i]  = js.velocity[js_idx]
+            else:
+                qd = None
+            if js_idx < len(js.effort) and eff is not None:
+                eff[i] = js.effort[js_idx]
+            else:
+                eff = None
+        return q, qd, eff
 
     ##
     # @return List of link names in the kinematic chain.

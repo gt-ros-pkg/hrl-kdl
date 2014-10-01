@@ -41,9 +41,9 @@ from sensor_msgs.msg import JointState
 from urdf_parser_py.urdf import URDF
 from pykdl_utils.kdl_kinematics import KDLKinematics
 
-def create_joint_kin(base_link, end_link, urdf_filename=None, timeout=1.):
+def create_joint_kin(base_link, end_link, urdf_filename=None, description_param="/robot_description", timeout=1.):
     if urdf_filename is None:
-        robot = URDF.load_from_parameter_server(verbose=False)
+        robot = URDF.load_from_parameter_server(key=description_param, verbose=False)
     else:
         robot = URDF.load_xml_file(urdf_filename, verbose=False)
     return JointKinematics(robot, base_link, end_link, timeout=timeout)

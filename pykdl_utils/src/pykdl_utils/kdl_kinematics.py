@@ -42,9 +42,9 @@ from hrl_geom.pose_converter import PoseConv
 from kdl_parser import kdl_tree_from_urdf_model
 from urdf_parser_py.urdf import URDF
 
-def create_kdl_kin(base_link, end_link, urdf_filename=None):
+def create_kdl_kin(base_link, end_link, urdf_filename=None, description_param="/robot_description"):
     if urdf_filename is None:
-        robot = URDF.load_from_parameter_server(verbose=False)
+        robot = URDF.load_from_parameter_server(key=description_param, verbose=False)
     else:
         robot = URDF.load_xml_file(urdf_filename, verbose=False)
     return KDLKinematics(robot, base_link, end_link)

@@ -88,8 +88,8 @@ class KDLKinematics(object):
                 self.joint_limits_lower.append(None)
                 self.joint_limits_upper.append(None)
             if jnt.safety_controller is not None:
-                self.joint_safety_lower.append(jnt.safety_controller.lower)
-                self.joint_safety_upper.append(jnt.safety_controller.upper)
+                self.joint_safety_lower.append(jnt.safety_controller.soft_lower_limit)#.lower)
+                self.joint_safety_upper.append(jnt.safety_controller.soft_upper_limit)#.upper)
             elif jnt.limit is not None:
                 self.joint_safety_lower.append(jnt.limit.lower)
                 self.joint_safety_upper.append(jnt.limit.upper)

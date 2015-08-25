@@ -5,7 +5,7 @@
 #
 # Copyright (c) 2012, Georgia Tech Research Corporation
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #     * Redistributions of source code must retain the above copyright
@@ -16,7 +16,7 @@
 #     * Neither the name of the Georgia Tech Research Corporation nor the
 #       names of its contributors may be used to endorse or promote products
 #       derived from this software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY GEORGIA TECH RESEARCH CORPORATION ''AS IS'' AND
 # ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -38,9 +38,9 @@ from sensor_msgs.msg import JointState
 from urdf_parser_py.urdf import URDF
 from pykdl_utils.kdl_kinematics import KDLKinematics
 
-def create_joint_kin(base_link, end_link, urdf_filename=None, timeout=1., wait=False):
+def create_joint_kin(base_link, end_link, urdf_filename=None, timeout=1., wait=False, description_param="robot_description"):
     if urdf_filename is None:
-        robot = URDF.from_parameter_server()
+        robot = URDF.from_parameter_server(key=description_param)
     else:
         f = file(urdf_filename, 'r')
         robot = Robot.from_xml_string(f.read())
@@ -53,7 +53,7 @@ def create_joint_kin(base_link, end_link, urdf_filename=None, timeout=1., wait=F
 class JointKinematicsBase(KDLKinematics):
     ##
     # Perform forward kinematics on the current joint angles.
-    # @param q List of joint angles for the full kinematic chain. 
+    # @param q List of joint angles for the full kinematic chain.
     #          If None, the current joint angles are used.
     # @param end_link Name of the link the pose should be obtained for.
     # @param base_link Name of the root link frame the end_link should be found in.
@@ -146,7 +146,7 @@ class JointKinematics(JointKinematicsBase):
     def _joint_state_cb(self, msg):
         if self._joint_state_inds is None:
             joint_names_list = self.get_joint_names()
-            self._joint_state_inds = [msg.name.index(joint_name) for 
+            self._joint_state_inds = [msg.name.index(joint_name) for
                                      joint_name in joint_names_list]
         self._joint_angles = [msg.position[i] for i in self._joint_state_inds]
         self._joint_velocities = [msg.velocity[i] for i in self._joint_state_inds]
@@ -309,7 +309,7 @@ def main():
         print "End effector force:", js_kin.end_effector_force()
 
         if True:
-            import tf 
+            import tf
             from hrl_geom.pose_converter import PoseConv
             tf_list = tf.TransformListener()
             rospy.sleep(1)

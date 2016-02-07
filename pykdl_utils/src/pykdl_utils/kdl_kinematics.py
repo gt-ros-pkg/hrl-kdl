@@ -223,8 +223,11 @@ class KDLKinematics(object):
     #                   If None, the safety limits are used.
     # @param max_joints List of joint angles to upper bound the angles on the IK search.
     #                   If None, the safety limits are used.
+    # @param maxiter The maximum Newton-Raphson iterations, default: 100 
+    # @param eps     The precision for the position, used to end the iterations,
     # @return np.array of joint angles needed to reach the pose or None if no solution was found.
-    def inverse(self, pose, q_guess=None, min_joints=None, max_joints=None):
+    def inverse(self, pose, q_guess=None, min_joints=None, max_joints=None, maxiter=100,\
+                eps=1e-6):
         pos, rot = PoseConv.to_pos_rot(pose)
         pos_kdl = kdl.Vector(pos[0,0], pos[1,0], pos[2,0])
         rot_kdl = kdl.Rotation(rot[0,0], rot[0,1], rot[0,2],
@@ -238,8 +241,8 @@ class KDLKinematics(object):
         mins_kdl = joint_list_to_kdl(min_joints)
         maxs_kdl = joint_list_to_kdl(max_joints)
         ik_p_kdl = kdl.ChainIkSolverPos_NR_JL(self.chain, mins_kdl, maxs_kdl,\
-                                              self._fk_kdl, self._ik_v_kdl )
-
+                                              self._fk_kdl, self._ik_v_kdl, maxiter, eps)
+                                              
         if q_guess == None:
             # use the midpoint of the joint limits as the guess
             lower_lim = np.where(np.isfinite(min_joints), min_joints, 0.)

@@ -33,7 +33,6 @@
 import numpy as np
 import copy
 
-import roslib; roslib.load_manifest('hrl_geom')
 import rospy
 from std_msgs.msg import Header
 from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion, PointStamped

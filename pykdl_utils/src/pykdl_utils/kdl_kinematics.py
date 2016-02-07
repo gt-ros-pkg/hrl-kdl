@@ -237,8 +237,8 @@ class KDLKinematics(object):
             max_joints = self.joint_safety_upper
         mins_kdl = joint_list_to_kdl(min_joints)
         maxs_kdl = joint_list_to_kdl(max_joints)
-        ik_p_kdl = kdl.ChainIkSolverPos_NR_JL(self.chain, mins_kdl, maxs_kdl,
-                                              self._fk_kdl, self._ik_v_kdl)
+        ik_p_kdl = kdl.ChainIkSolverPos_NR_JL(self.chain, mins_kdl, maxs_kdl,\
+                                              self._fk_kdl, self._ik_v_kdl )
 
         if q_guess == None:
             # use the midpoint of the joint limits as the guess
@@ -259,16 +259,54 @@ class KDLKinematics(object):
     # or the call times out.
     # @param pose Pose-like object represeting the target pose of the end effector.
     # @param timeout Time in seconds to look for a solution.
+    # @param min_joints List of joint angles to lower bound the angles on the IK search.
+    #                   If None, the safety limits are used.
+    # @param max_joints List of joint angles to upper bound the angles on the IK search.
+    #                   If None, the safety limits are used.
     # @return np.array of joint angles needed to reach the pose or None if no solution was found.
-    def inverse_search(self, pose, timeout=1.):
+    def inverse_search(self, pose, timeout=1., min_joints=None, max_joints=None):
         st_time = rospy.get_time()
         while not rospy.is_shutdown() and rospy.get_time() - st_time < timeout:
             q_init = self.random_joint_angles()
-            q_ik = self.inverse(pose, q_init)
+            q_ik = self.inverse(pose, q_init, min_joints, max_joints)
             if q_ik is not None:
                 return q_ik
         return None
 
+
+    ##
+    # Pseudo Inverse kinematics for a given pose traj, returning the joint angle traj required
+    # to obtain the target pose.
+    # @param poses Pose-like objects represeting the target pose of the end effector.
+    # @param q_guess List of joint angles to seed the IK search.
+    # @param min_joints List of joint angles to lower bound the angles on the IK search.
+    #                   If None, the safety limits are used.
+    # @param max_joints List of joint angles to upper bound the angles on the IK search.
+    #                   If None, the safety limits are used.
+    # @return np.arrays of joint angles needed to reach the pose or None if no solution was found.
+    def pinverse(self, q_cur_list, twist_kdl, min_joints=None, max_joints=None, joint_weights=None):
+
+        if min_joints is None:
+            min_joints = self.joint_safety_lower
+        if max_joints is None:
+            max_joints = self.joint_safety_upper
+        
+        joint_weight_mat = np.identity(self.num_joints)        
+        if joint_weight_mat is not None:
+            for i in xrange(self.num_joints):
+                joint_weight_mat[i,i] = joint_weights[i]
+                
+        ik_p_kdl = kdl.ChainIkSolverVel_wdls( self.chain )
+        ik_p_kdl.setWeightJS( joint_weight_mat.tolist() )            
+        
+        qdot_kdl  = kdl.JntArray(self.num_joints)
+        q_cur_kdl = joint_list_to_kdl(q_cur_list)
+
+        if ik_p_kdl.CartToJnt(q_cur_kdl, twist_kdl, qdot_kdl) >= 0:
+            return joint_kdl_to_list(qdot_kdl) 
+        else: return None
+
+            
     ##
     # Returns the Jacobian matrix at the end_link for the given joint angles.
     # @param q List of joint angles.

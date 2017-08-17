@@ -240,7 +240,7 @@ class KDLKinematics(object):
         ik_p_kdl = kdl.ChainIkSolverPos_NR_JL(self.chain, mins_kdl, maxs_kdl,
                                               self._fk_kdl, self._ik_v_kdl)
 
-        if q_guess == None:
+        if np.any(q_guess == None):
             # use the midpoint of the joint limits as the guess
             lower_lim = np.where(np.isfinite(min_joints), min_joints, 0.)
             upper_lim = np.where(np.isfinite(max_joints), max_joints, 0.)

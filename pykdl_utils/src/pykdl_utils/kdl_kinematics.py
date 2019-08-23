@@ -218,6 +218,21 @@ class KDLKinematics(object):
             return None
 
     ##
+    # Get joint torques resulting from gravity
+    # @param q List of joint angles for the full kinematic chain.
+    # @param grav List representing gravity vector [x, y, z] relative to kinematic chain's base link
+    # @return List of joint torques
+    def get_joint_torques_from_gravity(self, q, grav=None):
+        if grav is None:
+            grav = [0.0, 0.0, -9.81]
+        grav_vector = kdl.Vector(grav[0], grav[1], grav[2])
+        dyn_kdl = kdl.ChainDynParam(self.chain, grav_vector)
+        jt_positions = joint_list_to_kdl(q)
+        grav_jt_torques = kdl.JntArray(len(q))
+        dyn_kdl.JntToGravity(jt_positions, grav_jt_torques)
+        return joint_kdl_to_list(grav_jt_torques)
+
+    ##
     # Inverse kinematics for a given pose, returning the joint angles required
     # to obtain the target pose.
     # @param pose Pose-like object represeting the target pose of the end effector.

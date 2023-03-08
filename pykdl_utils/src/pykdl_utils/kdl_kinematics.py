@@ -41,6 +41,7 @@ from hrl_geom.pose_converter import PoseConv
 from kdl_parser import kdl_tree_from_urdf_model
 from urdf_parser_py.urdf import Robot
 
+
 def create_kdl_kin(base_link, end_link, urdf_filename=None, description_param="/robot_description"):
     if urdf_filename is None:
         robot = Robot.from_parameter_server(key=description_param)
@@ -53,6 +54,7 @@ def create_kdl_kin(base_link, end_link, urdf_filename=None, description_param="/
 ##
 # Provides wrappers for performing KDL functions on a designated kinematic
 # chain given a URDF representation of a robot.
+
 
 class KDLKinematics(object):
     ##
@@ -68,8 +70,8 @@ class KDLKinematics(object):
         self.tree = kdl_tree
         self.urdf = urdf
 
-        base_link = base_link.split("/")[-1] # for dealing with tf convention
-        end_link = end_link.split("/")[-1] # for dealing with tf convention
+        base_link = base_link.split("/")[-1]  # for dealing with tf convention
+        end_link = end_link.split("/")[-1]  # for dealing with tf convention
         self.chain = kdl_tree.getChain(base_link, end_link)
         self.base_link = base_link
         self.end_link = end_link
@@ -98,6 +100,7 @@ class KDLKinematics(object):
                 self.joint_safety_lower.append(None)
                 self.joint_safety_upper.append(None)
             self.joint_types.append(jnt.type)
+
         def replace_none(x, v):
             if x is None:
                 return v
@@ -122,17 +125,17 @@ class KDLKinematics(object):
     def extract_joint_state(self, js, joint_names=None):
         if joint_names is None:
             joint_names = self.get_joint_names()
-        q   = np.zeros(len(joint_names))
-        qd  = np.zeros(len(joint_names))
+        q = np.zeros(len(joint_names))
+        qd = np.zeros(len(joint_names))
         eff = np.zeros(len(joint_names))
         for i, joint_name in enumerate(joint_names):
             js_idx = js.name.index(joint_name)
             if js_idx < len(js.position) and q is not None:
-                q[i]   = js.position[js_idx]
+                q[i] = js.position[js_idx]
             else:
                 q = None
             if js_idx < len(js.velocity) and qd is not None:
-                qd[i]  = js.velocity[js_idx]
+                qd[i] = js.velocity[js_idx]
             else:
                 qd = None
             if js_idx < len(js.effort) and eff is not None:
@@ -163,7 +166,6 @@ class KDLKinematics(object):
         homo_mat = self.forward(q, end_link)
         pos, rot = PoseConv.to_pos_rot(homo_mat)
         return pos, rot
-
 
     ##
     # Forward kinematics on the given joint angles, returning the location of the
@@ -216,6 +218,21 @@ class KDLKinematics(object):
             return None
 
     ##
+    # Get joint torques resulting from gravity
+    # @param q List of joint angles for the full kinematic chain.
+    # @param grav List representing gravity vector [x, y, z] relative to kinematic chain's base link
+    # @return List of joint torques
+    def get_joint_torques_from_gravity(self, q, grav=None):
+        if grav is None:
+            grav = [0.0, 0.0, -9.81]
+        grav_vector = kdl.Vector(grav[0], grav[1], grav[2])
+        dyn_kdl = kdl.ChainDynParam(self.chain, grav_vector)
+        jt_positions = joint_list_to_kdl(q)
+        grav_jt_torques = kdl.JntArray(len(q))
+        dyn_kdl.JntToGravity(jt_positions, grav_jt_torques)
+        return joint_kdl_to_list(grav_jt_torques)
+
+    ##
     # Inverse kinematics for a given pose, returning the joint angles required
     # to obtain the target pose.
     # @param pose Pose-like object represeting the target pose of the end effector.
@@ -229,7 +246,7 @@ class KDLKinematics(object):
     # @param eps     The precision for the position, used to end the iterations,
     #                If None, epsilon is set. 
     # @return np.array of joint angles needed to reach the pose or None if no solution was found.
-    def inverse(self, pose, q_guess=None, min_joints=None, max_joints=None, maxiter=100,\
+    def inverse(self, pose, q_guess=None, min_joints=None, max_joints=None, maxiter=100,
                 eps=sys.float_info.epsilon):
         pos, rot = PoseConv.to_pos_rot(pose)
         pos_kdl = kdl.Vector(pos[0,0], pos[1,0], pos[2,0])
@@ -243,10 +260,10 @@ class KDLKinematics(object):
             max_joints = self.joint_safety_upper
         mins_kdl = joint_list_to_kdl(min_joints)
         maxs_kdl = joint_list_to_kdl(max_joints)
-        ik_p_kdl = kdl.ChainIkSolverPos_NR_JL(self.chain, mins_kdl, maxs_kdl,\
+        ik_p_kdl = kdl.ChainIkSolverPos_NR_JL(self.chain, mins_kdl, maxs_kdl,
                                               self._fk_kdl, self._ik_v_kdl, maxiter, eps)
 
-        if np.any(q_guess == None):
+        if np.any(q_guess is None):
             # use the midpoint of the joint limits as the guess
             lower_lim = np.where(np.isfinite(min_joints), min_joints, 0.)
             upper_lim = np.where(np.isfinite(max_joints), max_joints, 0.)
@@ -297,7 +314,7 @@ class KDLKinematics(object):
         if pos is not None:
             ee_pos = self.forward(q)[:3,3]
             pos_kdl = kdl.Vector(pos[0]-ee_pos[0], pos[1]-ee_pos[1],
-                                  pos[2]-ee_pos[2])
+                                 pos[2]-ee_pos[2])
             j_kdl.changeRefPoint(pos_kdl)
         return kdl_to_mat(j_kdl)
 
@@ -421,16 +438,18 @@ class KDLKinematics(object):
 
 
 def kdl_to_mat(m):
-    mat =  np.mat(np.zeros((m.rows(), m.columns())))
+    mat = np.mat(np.zeros((m.rows(), m.columns())))
     for i in range(m.rows()):
         for j in range(m.columns()):
             mat[i,j] = m[i,j]
     return mat
 
+
 def joint_kdl_to_list(q):
-    if q == None:
+    if q is None:
         return None
     return [q[i] for i in range(q.rows())]
+
 
 def joint_list_to_kdl(q):
     if q is None:
@@ -442,8 +461,10 @@ def joint_list_to_kdl(q):
         q_kdl[i] = q_i
     return q_kdl
 
+
 def main():
     import sys
+
     def usage():
         print("Tests for kdl_parser:\n")
         print("kdl_parser <urdf file>")
@@ -456,7 +477,7 @@ def main():
         usage()
     if len(sys.argv) == 2 and (sys.argv[1] == "-h" or sys.argv[1] == "--help"):
         usage()
-    if (len(sys.argv) == 1):
+    if len(sys.argv) == 1:
         robot = Robot.from_parameter_server()
     else:
         f = file(sys.argv[1], 'r')
@@ -507,6 +528,7 @@ def main():
                 pose_search = kdl_kin.forward(q_search)
                 print "Result error:", np.linalg.norm(pose_search * pose**-1 - np.mat(np.eye(4)))
             num_times -= 1
+
 
 if __name__ == "__main__":
     main()
